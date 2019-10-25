@@ -36,6 +36,7 @@ import (
 	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/acmedns"
 	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/akamai"
 	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/azuredns"
+	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/cis"
 	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/clouddns"
 	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/cloudflare"
 	"github.com/jetstack/cert-manager/pkg/issuer/acme/dns/digitalocean"
@@ -61,6 +62,7 @@ type solver interface {
 // It is useful for mocking out a given provider since an alternate set of
 // constructors may be set.
 type dnsProviderConstructors struct {
+	cis        	 func(apikey, crn string) (*cis.DNSProvider, error)
 	cloudDNS     func(project string, serviceAccount []byte, dns01Nameservers []string, ambient bool) (*clouddns.DNSProvider, error)
 	cloudFlare   func(email, apikey string, dns01Nameservers []string) (*cloudflare.DNSProvider, error)
 	route53      func(accessKey, secretKey, hostedZoneID, region, role string, ambient bool, dns01Nameservers []string) (*route53.DNSProvider, error)
@@ -224,6 +226,20 @@ func (s *Solver) solverForChallenge(ctx context.Context, issuer v1alpha2.Generic
 			s.DNS01Nameservers)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "error instantiating akamai challenge solver")
+		}
+	case providerConfig.CIS != nil:
+		dbg.Info("preparing to create CIS provider")
+		apikey, err := s.loadSecretData(&providerConfig.CIS.ApiKey)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "error getting IAM api key for CIS")
+		}
+		crn := providerConfig.CIS.Crn
+
+		impl, err = cis.NewDNSProviderCredentials(
+			string(apikey),
+			crn)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "error instantiating CIS challenge solver")
 		}
 	case providerConfig.CloudDNS != nil:
 		dbg.Info("preparing to create CloudDNS provider")
@@ -454,6 +470,7 @@ func NewSolver(ctx *controller.Context) (*Solver, error) {
 		Context:      ctx,
 		secretLister: ctx.KubeSharedInformerFactory.Core().V1().Secrets().Lister(),
 		dnsProviderConstructors: dnsProviderConstructors{
+			cis.NewDNSProviderCredentials,
 			clouddns.NewDNSProvider,
 			cloudflare.NewDNSProviderCredentials,
 			route53.NewDNSProvider,

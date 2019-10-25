@@ -172,6 +172,9 @@ type ACMEChallengeSolverDNS01 struct {
 	Akamai *ACMEIssuerDNS01ProviderAkamai `json:"akamai,omitempty"`
 
 	// +optional
+	CIS *ACMEIssuerDNS01ProviderCIS `json:"cis,omitempty"`
+
+	// +optional
 	CloudDNS *ACMEIssuerDNS01ProviderCloudDNS `json:"clouddns,omitempty"`
 
 	// +optional
@@ -222,6 +225,13 @@ type ACMEIssuerDNS01ProviderAkamai struct {
 	ClientToken           cmmeta.SecretKeySelector `json:"clientTokenSecretRef"`
 	ClientSecret          cmmeta.SecretKeySelector `json:"clientSecretSecretRef"`
 	AccessToken           cmmeta.SecretKeySelector `json:"accessTokenSecretRef"`
+}
+
+// ACMEIssuerDNS01ProviderCIS is a structure containing the DNS
+// configuration for CIS DNS—Zone Record Management API
+type ACMEIssuerDNS01ProviderCIS struct {
+	ApiKey SecretKeySelector `json:"apiKeySecretRef"`
+	Crn    string            `json:"crn"`
 }
 
 // ACMEIssuerDNS01ProviderCloudDNS is a structure containing the DNS
